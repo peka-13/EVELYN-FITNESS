@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evelyn Fit - Private Cloud</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6; font-weight: bold; }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .sync-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900">
+
+    <!-- Pantalla de Login -->
+    <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-6">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center">
+            <h1 class="text-3xl font-black italic text-blue-600 mb-2">EVELYN <span class="text-slate-800">PRO</span></h1>
+            <p class="text-slate-500 text-sm mb-8">Inicia sesión para sincronizar tus cargas en la nube de Google.</p>
+            <button id="btn-login" class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 py-3 px-4 rounded-xl font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-95 shadow-sm">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5" alt="Google">
+                Entrar con Google
+            </button>
+        </div>
+    </div>
+
+    <!-- App Principal (Oculta hasta login) -->
+    <div id="app-content" class="hidden">
+        <header class="bg-blue-600 text-white p-6 shadow-xl sticky top-0 z-30">
+            <div class="max-w-4xl mx-auto flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-black italic tracking-tighter">EVELYN <span class="text-blue-200 uppercase text-sm">Fit</span></h1>
+                    <div class="flex items-center gap-2 mt-1">
+                        <div id="status-dot" class="w-2 h-2 rounded-full bg-slate-400"></div>
+                        <p id="status-text" class="text-[9px] uppercase font-bold tracking-widest text-blue-100">Iniciando...</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <img id="user-photo" class="w-8 h-8 rounded-full border-2 border-blue-400" src="" alt="">
+                    <button id="btn-logout" class="text-xs bg-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-800 transition">Salir</button>
+                </div>
+            </div>
+        </header>
+
+        <nav class="bg-white border-b sticky top-[80px] z-20 shadow-sm">
+            <div class="max-w-4xl mx-auto flex">
+                <button id="btn-rutina" onclick="switchTab('rutina')" class="flex-1 py-4 text-[10px] font-black tracking-widest tab-active uppercase">Rutina</button>
+                <button id="btn-progreso" onclick="switchTab('progreso')" class="flex-1 py-4 text-[10px] font-black tracking-widest text-slate-400 uppercase">Progreso</button>
+            </div>
+        </nav>
+
+        <main class="max-w-4xl mx-auto p-4 space-y-6 pb-20">
+            <div id="sec-rutina" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+            <div id="sec-progreso" class="hidden space-y-6">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <select id="muscle-selector" onchange="window.actualizarVista()" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none">
+                        <option value="Glúteos">Glúteos</option>
+                        <option value="Push">Push</option>
+                        <option value="Cuádriceps">Cuádriceps</option>
+                        <option value="Pull">Pull</option>
+                        <option value="Glúteo/Femoral">Glúteo/Femoral</option>
+                        <option value="Espalda/Biceps">Espalda/Biceps</option>
+                    </select>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="h-64"><canvas id="progresoChart"></canvas></div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b">
+                                <tr><th class="p-4">Ejercicio</th><th class="p-4 text-center">S1</th><th class="p-4 text-center">S2</th><th class="p-4 text-center">S3</th><th class="p-4 text-center">S4</th><th class="p-4 text-center">S5</th></tr>
+                            </thead>
+                            <tbody id="table-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <button onclick="window.exportExcel()" class="w-full bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition">Exportar a Excel</button>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXMh4TGfCKNI2muAzo4XcGMY-6ViYS8dU",
+            authDomain: "eve-progress.firebaseapp.com",
+            projectId: "eve-progress",
+            storageBucket: "eve-progress.firebasestorage.app",
+            messagingSenderId: "444415880037",
+            appId: "1:444415880037:web:8daf63d23b8c644102cf8c",
+            measurementId: "G-79KW0P6GDE"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        let dbPesos = {};
+        let miGrafica = null;
+        let currentUser = null;
+        let unsubscribeData = null;
+
+        const rutinaData = [
+            { dia: "Día 1", enfoque: "Glúteos", lista: ["Hip Thrust", "Peso muerto rumano", "Búlgaras", "Patada de glúteo en polea", "Extensión de femoral"] },
+            { dia: "Día 2", enfoque: "Push", lista: ["Press plano", "Press inclinado", "Press militar", "Contractora", "Press francés polea", "Extensión tríceps polea","Rear delt fly","Elevaciones frontales con disco", "Elevaciones laterales"] },
+            { dia: "Día 3", enfoque: "Cuádriceps", lista: ["Sentadilla", "Prensa", "Extensión de cuádriceps","Zancadas con peso", "Elevación talones"] },
+            { dia: "Día 4", enfoque: "Pull", lista: ["Jalón pecho prono", "Remo polea baja unilateral", "Remo alto máquina", "Bíceps alterno", "Bíceps martillo", "curl biceps agarre prono"] },
+            { dia: "Día 5", enfoque: "Glúteo/Femoral", lista: ["Hip Thrust", "Peso muerto rumano", "Step up", "Extensión femoral", "Abductor máquina", "Aductor máquina"] },
+            { dia: "Día 6", enfoque: "Espalda/Biceps", lista: ["Jalón pecho prono", "Remo mancuerna unilateral", "Face Pull", "Bíceps alterno", "Bíceps martillo","curl biceps agarre prono"] }
+        ];
+
+        // Manejo de Autenticación
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-content').classList.remove('hidden');
+                document.getElementById('user-photo').src = user.photoURL;
+                iniciarSincronizacion(user.uid);
+            } else {
+                currentUser = null;
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('app-content').classList.add('hidden');
+                if(unsubscribeData) unsubscribeData();
+            }
+        });
+
+        document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
+        document.getElementById('btn-logout').onclick = () => signOut(auth);
+
+        function iniciarSincronizacion(uid) {
+            // RUTA RECOMENDADA: /artifacts/eve-progress/users/{uid}/data/pesos
+            const userDoc = doc(db, "artifacts", "eve-progress", "users", uid, "data", "pesos");
+            
+            unsubscribeData = onSnapshot(userDoc, (snap) => {
+                if (snap.exists()) {
+                    dbPesos = snap.data().val || {};
+                    actualizarStatus("Sincronizado", "bg-green-400");
+                } else {
+                    actualizarStatus("Listo (Nube vacía)", "bg-blue-300");
+                }
+                window.actualizarVista();
+            }, () => actualizarStatus("Error de red", "bg-red-500"));
+        }
+
+        window.guardarPeso = async (ej, idx, val) => {
+            if(!currentUser) return;
+            if(!dbPesos[ej]) dbPesos[ej] = [0,0,0,0,0];
+            dbPesos[ej][idx] = parseFloat(val) || 0;
+            
+            actualizarStatus("Guardando...", "bg-blue-400 sync-pulse");
+            const userDoc = doc(db, "artifacts", "eve-progress", "users", currentUser.uid, "data", "pesos");
+            try {
+                await setDoc(userDoc, { val: dbPesos });
+            } catch (e) {
+                actualizarStatus("Error guardado", "bg-red-500");
+            }
+        };
+
+        // --- UI Logic ---
+        function actualizarStatus(txt, color) {
+            const dot = document.getElementById('status-dot');
+            const label = document.getElementById('status-text');
+            if(dot) dot.className = `w-2 h-2 rounded-full ${color}`;
+            if(label) label.innerText = txt;
+        }
+
+        function dibujarRutina() {
+            const container = document.getElementById('sec-rutina');
+            container.innerHTML = '';
+            rutinaData.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm";
+                card.innerHTML = `<h3 class="font-black text-slate-800 text-xs italic uppercase mb-3 flex justify-between">${item.dia} <span class="text-blue-500">${item.enfoque}</span></h3>
+                <ul class="space-y-1">${item.lista.map(ex => `<li class="text-[11px] text-slate-500 flex items-center"><div class="w-1 h-1 bg-blue-300 rounded-full mr-2"></div> ${ex}</li>`).join('')}</ul>`;
+                container.appendChild(card);
+            });
+        }
+
+        window.actualizarVista = () => {
+            const grupo = document.getElementById('muscle-selector').value;
+            const dia = rutinaData.find(d => d.enfoque === grupo);
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if (dia) {
+                dia.lista.forEach(ej => {
+                    const pesos = dbPesos[ej] || [0, 0, 0, 0, 0];
+                    const tr = document.createElement('tr');
+                    let html = `<td class="p-4 font-bold text-slate-700 text-[11px]">${ej}</td>`;
+                    pesos.forEach((p, i) => {
+                        html += `<td class="p-1"><input type="number" step="0.5" value="${p}" onchange="window.guardarPeso('${ej}', ${i}, this.value)" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-center text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all"></td>`;
+                    });
+                    tr.innerHTML = html;
+                    tbody.appendChild(tr);
+                });
+
+                if(miGrafica) {
+                    miGrafica.data.datasets = dia.lista.map((ej, i) => ({
+                        label: ej,
+                        data: dbPesos[ej] || [0,0,0,0,0],
+                        borderColor: `hsl(${i * 60}, 70%, 55%)`,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.5,
+                        tension: 0.3,
+                        pointRadius: 3
+                    }));
+                    miGrafica.update();
+                }
+            }
+        };
+
+        function initChart() {
+            const ctx = document.getElementById('progresoChart').getContext('2d');
+            miGrafica = new Chart(ctx, {
+                type: 'line',
+                data: { labels: ['S1', 'S2', 'S3', 'S4', 'S5'], datasets: [] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 6, font: { size: 8, weight: 'bold' } } } } }
+            });
+        }
+
+        window.switchTab = (tab) => {
+            document.getElementById('sec-rutina').classList.toggle('hidden', tab !== 'rutina');
+            document.getElementById('sec-progreso').classList.toggle('hidden', tab !== 'progreso');
+            document.getElementById('btn-rutina').className = `flex-1 py-4 text-[10px] font-black tracking-widest ${tab === 'rutina' ? 'tab-active' : 'text-slate-400'}`;
+            document.getElementById('btn-progreso').className = `flex-1 py-4 text-[10px] font-black tracking-widest ${tab === 'progreso' ? 'tab-active' : 'text-slate-400'}`;
+            if(tab === 'progreso') setTimeout(() => window.actualizarVista(), 10);
+        };
+
+        window.exportExcel = () => {
+            const rows = [["Ejercicio", "S1", "S2", "S3", "S4", "S5"]];
+            Object.keys(dbPesos).forEach(e => rows.push([e, ...dbPesos[e]]));
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "MisCargas");
+            XLSX.writeFile(wb, "Eve_Progress_Backup.xlsx");
+        };
+
+        dibujarRutina();
+        initChart();
+    </script>
+</body>
+</html>

@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#2563eb">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Evelyn Fit - Cloud</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,19 +17,18 @@
         .sync-pulse { animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
         .hidden { display: none !important; }
-        /* Evita el zoom automático en iPhone al enfocar inputs */
         input { font-size: 16px !important; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900 select-none">
 
-    <!-- Pantalla de Login -->
+    <!-- Pantalla de Inicio de Sesión -->
     <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-6">
         <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center">
             <h1 class="text-3xl font-black italic text-blue-600 mb-2">EVELYN <span class="text-slate-800">PRO</span></h1>
-            <p class="text-slate-500 text-sm mb-8">Sincroniza tus cargas en la nube de Google.</p>
+            <p class="text-slate-500 text-sm mb-8">Sincronización en la nube.</p>
             
-            <div id="login-error" class="hidden mb-4 p-3 bg-red-100 text-red-700 text-[10px] rounded-xl font-bold text-left whitespace-pre-wrap"></div>
+            <div id="login-error" class="hidden mb-4 p-3 bg-red-100 text-red-700 text-[11px] rounded-xl font-bold text-left border border-red-200"></div>
             
             <button id="btn-login" class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 py-4 px-4 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-95 shadow-sm">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5" alt="Google Logo">
@@ -40,7 +37,7 @@
         </div>
     </div>
 
-    <!-- App Principal -->
+    <!-- Contenido de la Aplicación -->
     <div id="app-content" class="hidden">
         <header class="bg-blue-600 text-white p-5 shadow-xl sticky top-0 z-30">
             <div class="max-w-4xl mx-auto flex justify-between items-center">
@@ -52,7 +49,7 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <img id="user-photo" class="w-8 h-8 rounded-full border-2 border-blue-400 shadow-sm" src="" alt="User profile">
+                    <img id="user-photo" class="w-8 h-8 rounded-full border-2 border-blue-400 shadow-sm" src="" alt="Usuario">
                     <button id="btn-logout" class="text-[10px] bg-blue-700 px-3 py-1.5 rounded-lg font-black uppercase hover:bg-blue-800 transition">Salir</button>
                 </div>
             </div>
@@ -66,13 +63,11 @@
         </nav>
 
         <main class="max-w-4xl mx-auto p-4 space-y-6 pb-24">
-            <!-- Sección Rutina -->
             <div id="sec-rutina" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 
-            <!-- Sección Progreso -->
             <div id="sec-progreso" class="hidden space-y-6">
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                    <label class="text-[9px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Seleccionar Enfoque</label>
+                    <label class="text-[9px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Enfoque</label>
                     <select id="muscle-selector" onchange="window.actualizarVista()" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none">
                         <option value="Glúteos">Glúteos</option>
                         <option value="Push">Push</option>
@@ -106,7 +101,6 @@
                 </div>
                 
                 <button onclick="window.exportExcel()" class="w-full bg-slate-800 text-white font-black uppercase tracking-widest text-xs py-5 rounded-2xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     Descargar Excel
                 </button>
             </div>
@@ -118,15 +112,26 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
+        // Configuración de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBXMh4TGfCKNI2muAzo4XcGMY-6ViYS8dU",
             authDomain: "eve-progress.firebaseapp.com",
             projectId: "eve-progress",
             storageBucket: "eve-progress.firebasestorage.app",
             messagingSenderId: "444415880037",
-            appId: "1:444415880037:web:8daf63d23b8c644102cf8c",
-            measurementId: "G-79KW0P6GDE"
+            appId: "1:444415880037:web:8daf63d23b8c644102cf8c"
         };
+
+        // ==========================================
+        // CONFIGURACIÓN DE LISTA BLANCA (WHITELIST)
+        // ==========================================
+        // Simplemente añade los correos permitidos aquí abajo:
+        const EMAILS_PERMITIDOS = [
+            "egasco2006@gmail.com", 
+            "pierre.rojas.higuera@gmail.com",
+            "jppierrelobo@gmail.com" // Asegúrate de añadir el tuyo
+        ];
+        // ==========================================
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -147,14 +152,25 @@
             { dia: "Día 6", enfoque: "Espalda/Biceps", lista: ["Jalón pecho prono", "Remo mancuerna unilateral", "Face Pull", "Bíceps alterno", "Bíceps martillo","curl biceps agarre prono"] }
         ];
 
-        // Estado Auth
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
+            const errorDiv = document.getElementById('login-error');
+            
             if (user) {
-                currentUser = user;
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-content').classList.remove('hidden');
-                document.getElementById('user-photo').src = user.photoURL || 'https://via.placeholder.com/150';
-                iniciarSincronizacion(user.uid);
+                const emailNormalizado = user.email.toLowerCase();
+                
+                if (EMAILS_PERMITIDOS.map(e => e.toLowerCase()).includes(emailNormalizado)) {
+                    currentUser = user;
+                    errorDiv.classList.add('hidden');
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('app-content').classList.remove('hidden');
+                    document.getElementById('user-photo').src = user.photoURL || '';
+                    iniciarSincronizacion(user.uid);
+                } else {
+                    await signOut(auth);
+                    currentUser = null;
+                    errorDiv.innerText = "ACCESO DENEGADO: " + user.email + " no está autorizado.";
+                    errorDiv.classList.remove('hidden');
+                }
             } else {
                 currentUser = null;
                 document.getElementById('login-screen').classList.remove('hidden');
@@ -164,15 +180,10 @@
         });
 
         document.getElementById('btn-login').onclick = async () => {
-            const errorDiv = document.getElementById('login-error');
-            errorDiv.classList.add('hidden');
-            
             try {
                 await signInWithPopup(auth, provider);
             } catch (error) {
-                console.error("Login Error:", error);
-                errorDiv.innerText = "Error al entrar: " + error.message;
-                errorDiv.classList.remove('hidden');
+                console.error(error);
             }
         };
 
@@ -180,18 +191,12 @@
 
         function iniciarSincronizacion(uid) {
             const userDoc = doc(db, "artifacts", "eve-progress", "users", uid, "data", "pesos");
-            
             unsubscribeData = onSnapshot(userDoc, (snap) => {
-                if (snap.exists()) {
-                    dbPesos = snap.data().val || {};
-                    actualizarStatus("Sincronizado", "bg-green-400");
-                } else {
-                    actualizarStatus("En línea", "bg-blue-300");
-                }
+                dbPesos = snap.exists() ? snap.data().val : {};
+                actualizarStatus("Sincronizado", "bg-green-400");
                 window.actualizarVista();
             }, (error) => {
-                console.error("Firestore Error:", error);
-                actualizarStatus("Error Permisos", "bg-red-500");
+                actualizarStatus("Error de Acceso", "bg-red-500");
             });
         }
 
@@ -205,7 +210,7 @@
             try {
                 await setDoc(userDoc, { val: dbPesos });
             } catch (e) {
-                actualizarStatus("Error Guardado", "bg-red-500");
+                actualizarStatus("Error", "bg-red-500");
             }
         };
 
@@ -250,12 +255,9 @@
                     miGrafica.data.datasets = dia.lista.map((ej, i) => ({
                         label: ej,
                         data: dbPesos[ej] || [0,0,0,0,0],
-                        borderColor: `hsl(${i * 65}, 75%, 55%)`,
-                        backgroundColor: 'transparent',
+                        borderColor: `hsl(${i * 65}, 70%, 50%)`,
                         borderWidth: 3,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#fff'
+                        tension: 0.4
                     }));
                     miGrafica.update();
                 }
@@ -267,20 +269,13 @@
             miGrafica = new Chart(ctx, {
                 type: 'line',
                 data: { labels: ['S1', 'S2', 'S3', 'S4', 'S5'], datasets: [] },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 6, font: { size: 9, weight: 'bold' }, padding: 15 } } },
-                    scales: { y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } }, x: { grid: { display: false } } }
-                }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
 
         window.switchTab = (tab) => {
             document.getElementById('sec-rutina').classList.toggle('hidden', tab !== 'rutina');
             document.getElementById('sec-progreso').classList.toggle('hidden', tab !== 'progreso');
-            document.getElementById('btn-rutina').className = `flex-1 py-4 text-[10px] font-black tracking-widest ${tab === 'rutina' ? 'tab-active' : 'text-slate-400'}`;
-            document.getElementById('btn-progreso').className = `flex-1 py-4 text-[10px] font-black tracking-widest ${tab === 'progreso' ? 'tab-active' : 'text-slate-400'}`;
             if(tab === 'progreso') setTimeout(() => { window.actualizarVista(); miGrafica.resize(); }, 50);
         };
 

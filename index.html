@@ -309,7 +309,7 @@
         const h = habitosHoyGlobal || { agua: 0, prote: 0 };
         
         // Intentamos llamar a la API de Vercel
-        const response = await fetch("/api/coach", {
+        const response = await fetch("https://evelyn-fitness.vercel.app/api/coach", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

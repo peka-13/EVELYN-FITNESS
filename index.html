@@ -300,56 +300,40 @@
   // --- LÓGICA DE IA CON GROQ (RÁPIDA Y SIN BLOQUEOS) ---
   // --- LÓGICA DE IA CON HÁBITOS + ENTRENAMIENTO (GROQ) ---
     window.generarConsejoIA = async () => {
-            const btn = document.getElementById('btn-ia');
-            const adviceBox = document.getElementById('ai-advice');
-            btn.innerText = "🧠 ANALIZANDO TODO...";
-            btn.disabled = true;
+    const btn = document.getElementById('btn-ia');
+    const adviceBox = document.getElementById('ai-advice');
+    btn.innerText = "🧠 ANALIZANDO...";
+    btn.disabled = true;
 
-            const GROQ_API_KEY = "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"; 
+    try {
+        const h = habitosHoyGlobal || { agua: 0, prote: 0 };
+        
+        // Intentamos llamar a la API de Vercel
+        const response = await fetch("/api/coach", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                messages: [
+                    { role: "system", content: "Eres Coach Evelyn. Da consejos de 10 palabras sobre fitness." },
+                    { role: "user", content: `Agua: ${h.agua}ml. Prote: ${h.prote}g. Dame un consejo.` }
+                ]
+            })
+        });
 
-            try {
-                const datosEntreno = JSON.stringify(dbHistorial).substring(0, 800);
-                
-                // USAMOS LA VARIABLE GLOBAL QUE ACTUALIZAMOS ARRIBA
-                const h = habitosHoyGlobal;
+        // Si estamos en local (error 405 o 404), lanzamos error para ir al 'catch'
+        if (!response.ok) throw new Error("API no disponible en local");
 
-                const contextoCompleto = `
-                    - Entrenamiento: ${datosEntreno}
-                    - Agua hoy: ${h.agua || 0}ml (Meta: ${configPerfil.tAgua || 2500}ml)
-                    - Proteína hoy: ${h.prote || 0}g (Meta: ${configPerfil.tProte || 150}g)
-                    - Creatina hoy: ${h.crea || 0}g (Meta: ${configPerfil.tCrea || 5}g)
-                `;
-                
-                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${GROQ_API_KEY}`
-                    },
-                    body: JSON.stringify({
-                        model: "llama-3.1-8b-instant",
-                        messages: [
-                            { 
-                                role: "system", 
-                                content: "Eres Evelyn Fit AI. Analiza pesos y nutrición. Si el agua o proteína están bajos respecto a la meta, sé estricto pero motivador. Máximo 15 palabras." 
-                            },
-                            { role: "user", content: `Analiza mi estado actual: ${contextoCompleto}` }
-                        ],
-                        max_tokens: 60
-                    })
-                });
+        const data = await response.json();
+        adviceBox.innerText = data.choices[0].message.content;
 
-                const data = await response.json();
-                adviceBox.innerText = data.choices[0].message.content.replace(/"/g, '');
-
-            } catch (e) {
-                console.error("Error Groq:", e);
-                adviceBox.innerText = "¡Mantente hidratado y entrena duro! 🔥";
-            } finally {
-                btn.innerText = "Analizar mi progreso ⚡";
-                btn.disabled = false;
-            }
-        };
+    } catch (e) {
+        console.warn("IA: Modo local detectado o error de API.");
+        adviceBox.innerText = "¡Sigue entrenando duro! La IA se activará en la versión publicada. 🔥";
+    } finally {
+        btn.innerText = "Analizar mi progreso ⚡";
+        btn.disabled = false;
+    }
+};
 
         // --- GESTIÓN DE AUTENTICACIÓN (Igual) ---
         onAuthStateChanged(auth, user => {

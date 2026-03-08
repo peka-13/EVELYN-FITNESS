@@ -302,33 +302,54 @@
     window.generarConsejoIA = async () => {
     const btn = document.getElementById('btn-ia');
     const adviceBox = document.getElementById('ai-advice');
-    btn.innerText = "🧠 ANALIZANDO...";
+    btn.innerText = "🧠 ESCANEANDO DATOS...";
     btn.disabled = true;
 
     try {
-        const h = habitosHoyGlobal || { agua: 0, prote: 0 };
+        // 1. Extraemos los datos actuales de las variables globales
+        const h = habitosHoyGlobal || { agua: 0, prote: 0, crea: 0 };
         
-        // Intentamos llamar a la API de Vercel
+        // 2. Simplificamos el historial para que la IA no se colapse (últimos 3 entrenos)
+        const historialCorto = Object.entries(dbHistorial)
+            .map(([ej, datos]) => `${ej}: ${datos[datos.length-1]?.series.map(s => s.p+'kg').join(', ')}`)
+            .slice(-3)
+            .join(' | ');
+
+        // 3. Creamos un mensaje MUY estructurado
+        const promptUsuario = `
+            DATOS REALES DE HOY:
+            - Agua: ${h.agua}ml (Meta: ${configPerfil.tAgua}ml)
+            - Proteína: ${h.prote}g (Meta: ${configPerfil.tProte}g)
+            - Últimos pesos: ${historialCorto || "Sin registros aún"}
+            
+            Analiza estos números específicos y dime qué mejorar HOY en 12 palabras.
+        `;
+
         const response = await fetch("https://evelyn-fitness.vercel.app/api/coach", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 messages: [
-                    { role: "system", content: "Eres Coach Evelyn. Da consejos de 10 palabras sobre fitness." },
-                    { role: "user", content: `Agua: ${h.agua}ml. Prote: ${h.prote}g. Dame un consejo.` }
+                    { 
+                        role: "system", 
+                        content: "Eres Evelyn, una Coach de Fitness técnica. No des consejos generales. Si el usuario tiene poca agua o proteína según sus metas, dáselo en cara con datos. Si va bien, menciona sus kg levantados." 
+                    },
+                    { role: "user", content: promptUsuario }
                 ]
             })
         });
 
-        // Si estamos en local (error 405 o 404), lanzamos error para ir al 'catch'
-        if (!response.ok) throw new Error("API no disponible en local");
-
         const data = await response.json();
-        adviceBox.innerText = data.choices[0].message.content;
+        
+        if (data.choices && data.choices[0]) {
+            adviceBox.innerText = data.choices[0].message.content.replace(/"/g, '');
+        } else {
+            throw new Error("Respuesta de IA vacía");
+        }
 
     } catch (e) {
-        console.warn("IA: Modo local detectado o error de API.");
-        adviceBox.innerText = "¡Sigue entrenando duro! La IA se activará en la versión publicada. 🔥";
+        console.error("Error IA:", e);
+        adviceBox.innerText = "Sigue así, pero recuerda registrar tus datos para un análisis real. 🔥";
     } finally {
         btn.innerText = "Analizar mi progreso ⚡";
         btn.disabled = false;
